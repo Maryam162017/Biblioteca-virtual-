@@ -1,0 +1,14 @@
+[
+  { 
+    "titulo": "Harry Potter", 
+    "autor": "J.K. Rowling",
+    "anio": 1997,
+    "genero": "Fantasía"
+  },
+  { 
+    "titulo": "El Principito", 
+    "autor": "Antoine de Saint-Exupéry",
+    "anio": 1943,
+    "genero": "Fábula / Infantil"
+  }
+]
