@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>📚 Biblioteca Virtual</title>
+<style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+    th, td { border: 1px solid #000; padding: 5px; text-align: left; }
+    input, select, button { margin: 5px 0; }
+</style>
+</head>
+<body>
+
+<h1>📚 Biblioteca Virtual</h1>
+
+<!-- ======================== -->
+<!--   TARJETA DE NOMBRES     -->
+<!-- ======================== -->
+<div style="
+    max-width: 300px;
+    background: #f2f2f2;
+    padding: 20px;
+    margin: 20px auto;
+    border-radius: 10px;
+    text-align: center;
+    font-size: 18px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+">
+    <b>Hecho por:</b><br><br>
+    Marian Duarte<br>
+    Alan Ayala<br>
+    Flavia Benitez
+</div>
+
+<div id="menu">
+    <button onclick="mostrarLibros()">Mostrar libros</button>
+    <button onclick="mostrarBuscar()">Buscar libro</button>
+    <button onclick="mostrarAdminLogin()">Modo administrador</button>
+</div>
+
+<div id="contenido"></div>
+
+<!-- ======================= -->
+<!--  FIREBASE + LÓGICA      -->
+<!-- ======================= -->
+<script type="module">
+
+/* ------------------------------
+   IMPORTS DE FIREBASE
+--------------------------------*/
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { 
+    getFirestore, collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where 
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+/* ------------------------------
+   CONFIGURACIÓN FIREBASE
+--------------------------------*/
+const firebaseConfig = {
+    apiKey: "AIzaSyCxcGlZzCT034ot4yQcmxUCt3nUezQAkk8",
+    authDomain: "biblioteca-virtual-889c2.firebaseapp.com",
+    projectId: "biblioteca-virtual-889c2",
+    storageBucket: "biblioteca-virtual-889c2.firebasestorage.app",
+    messagingSenderId: "802461085444",
+    appId: "1:802461085444:web:6392eea1b4e79f3c82aa51",
+    measurementId: "G-L7GHYV5X4R"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+/* ------------------------------
+   FUNCIONES FIREBASE
+--------------------------------*/
+
+// Normalizar texto
+function normalizar(texto) {
+    return texto.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+}
+
+// Guardar libro en Firestore
+async function firebaseGuardarLibro(libro) {
+    await addDoc(collection(db, "libros"), libro);
+}
+
+// Cargar libros
+async function firebaseCargarLibros() {
+    const snap = await getDocs(collection(db, "libros"));
+    let lista = [];
+    snap.forEach(docu => lista.push({ id: docu.id, ...docu.data() }));
+    return lista;
+}
+
+// Buscar libro
+async function firebaseBuscarLibro(tituloNormalizado) {
+    const q = query(
+        collection(db, "libros"),
+        where("TituloNormalizado", "==", tituloNormalizado)
+    );
+    const snap = await getDocs(q);
+    let lista = [];
+    snap.forEach(docu => lista.push({ id: docu.id, ...docu.data() }));
+    return lista;
+}
+
+// Cambiar estado
+async function firebaseCambiarEstado(id, nuevo) {
+    await updateDoc(doc(db, "libros", id), { Estado: nuevo });
+}
+
+// Borrar libro
+async function firebaseBorrarLibro(id) {
+    await deleteDoc(doc(db, "libros", id));
+}
+
+/* ------------------------------
+   INTERFAZ HTML
+--------------------------------*/
+
+const ADMIN_PASS = "Informatica 2025";
+
+/* --- MENÚ PRINCIPAL --- */
+function volverMenu() {
+    document.getElementById("contenido").innerHTML = "";
+}
+
+/* --- MOSTRAR LIBROS --- */
+async function mostrarLibros() {
+    const libros = await firebaseCargarLibros();
+    let html = "<h2>📚 Todos los libros</h2>";
+
+    if (libros.length > 0) {
+        html += "<table><tr><th>Título</th><th>Autor</th><th>Año</th><th>Género</th><th>Estado</th></tr>";
+        for (let libro of libros) {
+            html += `<tr>
+                        <td>${libro.Título}</td>
+                        <td>${libro.Autor}</td>
+                        <td>${libro.Año}</td>
+                        <td>${libro.Género}</td>
+                        <td>${libro.Estado}</td>
+                    </tr>`;
+        }
+        html += "</table>";
+    } else {
+        html += "<p>⚠️ No hay libros aún.</p>";
+    }
+
+    html += `<br><button onclick="volverMenu()">Volver</button>`;
+    document.getElementById("contenido").innerHTML = html;
+}
+
+/* --- BUSCAR LIBRO --- */
+function mostrarBuscar() {
+    document.getElementById("contenido").innerHTML = `
+        <h2>🔍 Buscar libro</h2>
+        <input id="busqueda" placeholder="Título">
+        <button onclick="buscarLibro()">Buscar</button>
+        <div id="resultado"></div>
+        <br><button onclick="volverMenu()">Volver</button>
+    `;
+}
+
+async function buscarLibro() {
+    const titulo = normalizar(document.getElementById("busqueda").value);
+    const libros = await firebaseBuscarLibro(titulo);
+
+    let html = "";
+
+    if (libros.length > 0) {
+        html += "<table><tr><th>Título</th><th>Autor</th><th>Año</th><th>Género</th><th>Estado</th></tr>";
+        for (let libro of libros) {
+            html += `<tr>
+                        <td>${libro.Título}</td>
+                        <td>${libro.Autor}</td>
+                        <td>${libro.Año}</td>
+                        <td>${libro.Género}</td>
+                        <td>${libro.Estado}</td>
+                     </tr>`;
+        }
+        html += "</table>";
+    } else {
+        html = "<p>❌ No se encontró ningún libro.</p>";
+    }
+
+    document.getElementById("resultado").innerHTML = html;
+}
+
+/* --- ADMIN LOGIN --- */
+function mostrarAdminLogin() {
+    document.getElementById("contenido").innerHTML = `
+        <h2>🔐 Acceso administrador</h2>
+        <input type="password" id="clave" placeholder="Contraseña">
+        <button onclick="verificarAdmin()">Entrar</button>
+        <br><button onclick="volverMenu()">Volver</button>
+    `;
+}
+
+function verificarAdmin() {
+    if (document.getElementById("clave").value === ADMIN_PASS) {
+        mostrarPanelAdmin();
+    } else {
+        alert("❌ Contraseña incorrecta");
+    }
+}
+
+/* --- PANEL ADMIN --- */
+function mostrarPanelAdmin() {
+    document.getElementById("contenido").innerHTML = `
+        <h1>⚙️ Panel Admin</h1>
+        <button onclick="mostrarAgregar()">Agregar libro</button><br><br>
+        <button onclick="mostrarCambiarEstado()">Cambiar estado</button><br><br>
+        <button onclick="mostrarBorrar()">Borrar libro</button><br><br>
+        <button onclick="volverMenu()">Volver</button>
+    `;
+}
+
+/* --- AGREGAR --- */
+function mostrarAgregar() {
+    document.getElementById("contenido").innerHTML = `
+        <h2>📘 Agregar libro</h2>
+        <input id="titulo" placeholder="Título"><br>
+        <input id="autor" placeholder="Autor"><br>
+        <input id="año" placeholder="Año"><br>
+        <input id="genero" placeholder="Género"><br>
+        Estado:
+        <select id="estado">
+            <option value="Disponible">Disponible</option>
+            <option value="Prestado">Prestado</option>
+        </select><br>
+        <button onclick="agregarLibro()">Guardar</button>
+        <br><button onclick="mostrarPanelAdmin()">Volver</button>
+    `;
+}
+
+async function agregarLibro() {
+    const libro = {
+        Título: document.getElementById("titulo").value,
+        Autor: document.getElementById("autor").value,
+        Año: document.getElementById("año").value,
+        Género: document.getElementById("genero").value,
+        Estado: document.getElementById("estado").value,
+        TituloNormalizado: normalizar(document.getElementById("titulo").value)
+    };
+
+    await firebaseGuardarLibro(libro);
+    mostrarPanelAdmin();
+}
+
+/* --- CAMBIAR ESTADO --- */
+function mostrarCambiarEstado() {
+    document.getElementById("contenido").innerHTML = `
+        <h2>📦 Cambiar estado</h2>
+        <input id="tituloEstado" placeholder="Título del libro">
+        <select id="nuevoEstado">
+            <option value="Disponible">Disponible</option>
+            <option value="Prestado">Prestado</option>
+        </select>
+        <button onclick="cambiarEstado()">Cambiar</button>
+        <div id="mensajeEstado"></div>
+        <br><button onclick="mostrarPanelAdmin()">Volver</button>
+    `;
+}
+
+async function cambiarEstado() {
+    const titulo = normalizar(document.getElementById("tituloEstado").value);
+    const libros = await firebaseBuscarLibro(titulo);
+
+    if (libros.length === 0) {
+        document.getElementById("mensajeEstado").innerText = "❌ Libro no encontrado";
+        return;
+    }
+
+    await firebaseCambiarEstado(libros[0].id, document.getElementById("nuevoEstado").value);
+    document.getElementById("mensajeEstado").innerText = "✔ Estado actualizado";
+}
+
+/* --- BORRAR --- */
+function mostrarBorrar() {
+    document.getElementById("contenido").innerHTML = `
+        <h2>🗑️ Borrar libro</h2>
+        <input id="tituloBorrar" placeholder="Título del libro">
+        <button onclick="borrarLibro()">Borrar</button>
+        <div id="mensajeBorrar"></div>
+        <br><button onclick="mostrarPanelAdmin()">Volver</button>
+    `;
+}
+
+async function borrarLibro() {
+    const titulo = normalizar(document.getElementById("tituloBorrar").value);
+    const libros = await firebaseBuscarLibro(titulo);
+
+    if (libros.length === 0) {
+        document.getElementById("mensajeBorrar").innerText = "❌ Libro no encontrado";
+        return;
+    }
+
+    await firebaseBorrarLibro(libros[0].id);
+    document.getElementById("mensajeBorrar").innerText = "✔ Libro eliminado";
+}
+
+/* ---------------------------------------------
+   HACER TODAS LAS FUNCIONES GLOBALES
+---------------------------------------------*/
+window.mostrarLibros = mostrarLibros;
+window.mostrarBuscar = mostrarBuscar;
+window.mostrarAdminLogin = mostrarAdminLogin;
+window.verificarAdmin = verificarAdmin;
+window.mostrarPanelAdmin = mostrarPanelAdmin;
+window.mostrarAgregar = mostrarAgregar;
+window.agregarLibro = agregarLibro;
+window.mostrarCambiarEstado = mostrarCambiarEstado;
+window.cambiarEstado = cambiarEstado;
+window.mostrarBorrar = mostrarBorrar;
+window.borrarLibro = borrarLibro;
+window.buscarLibro = buscarLibro;
+window.volverMenu = volverMenu;
+
+</script>
+
+</body>
+</html>
